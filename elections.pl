@@ -44,8 +44,16 @@ if ($resp->is_success) {
         }
     }
 
+    my $longest_party_name = 0;
+    for ( values %elected_parties_by_id ) {
+        $longest_party_name = $longest_party_name < length $_->{name} ? length $_->{name} : $longest_party_name;
+    }
+
     for my $party ( sort { $b->{seats} <=> $a->{seats} } values %elected_parties_by_id ) {
-        say $party->{name} . " - " . $party->{seats};
+        my $padding = $longest_party_name - length $party->{name};
+        say $party->{name} . (" "x$padding) 
+            . " - " . ($party->{seats} > 10 ? $party->{seats} : " ".$party->{seats}) 
+            . ' - ' . ($party->{validMarkCount}->{percentage} > 10 ? $party->{validMarkCount}->{percentage} : ' '.$party->{validMarkCount}->{percentage}) . '%';
     }
 } else {
     die $resp->status_line;
