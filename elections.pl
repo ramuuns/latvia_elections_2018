@@ -26,6 +26,12 @@ if ($resp->is_success) {
             $elected_parties_by_id{$result->{number}} = $result;
         }
     }
+
+    my $longest_party_name = 0;
+    for ( values %elected_parties_by_id ) {
+        $longest_party_name = $longest_party_name < length $_->{name} ? length $_->{name} : $longest_party_name;
+    }
+
     for my $region ( @{ $base_data->{childResults} } ) {
         my $max_in_region = $region->{location}->{deputyLimit};
         my @votes_for_seats;
@@ -37,17 +43,23 @@ if ($resp->is_success) {
                 }
             } 
         }
+        my %elected_this_region;
         my @sorted_votes = sort { $b->{votes} <=> $a->{votes} } @votes_for_seats;
         for (my $i = 0; $i < $max_in_region; $i++ ) {
             my $vote = $sorted_votes[$i];
+            $elected_this_region{$vote->{number}}++;
             $elected_parties_by_id{$vote->{number}}->{seats}++;
         }
+        say $region->{location}->{name};
+        say "";
+        for ( keys %elected_this_region ) {
+            my $party = $elected_parties_by_id{$_};
+            my $padding = $longest_party_name - length $party->{name};
+            say $party->{name} . (" "x$padding) . ' - ' . $elected_this_region{$_};
+        }
+        say "";
     }
 
-    my $longest_party_name = 0;
-    for ( values %elected_parties_by_id ) {
-        $longest_party_name = $longest_party_name < length $_->{name} ? length $_->{name} : $longest_party_name;
-    }
 
     for my $party ( sort { $b->{seats} <=> $a->{seats} } values %elected_parties_by_id ) {
         my $padding = $longest_party_name - length $party->{name};
