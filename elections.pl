@@ -1,28 +1,18 @@
 use 5.18.1;
 use strict;
 use warnings;
-use LWP::UserAgent();
 use JSON qw/decode_json/;
 binmode(STDOUT, ":utf8");
 
-my $ua = LWP::UserAgent->new;
-$ua->timeout(10);
-$ua->ssl_opts( verify_hostname => 0 );
-
-my $base_url = "https://sv2018.cvk.lv/pub/ElectionResults?";
-
-my $version_key = "FUOXAvl4obyRJKecb9lU35TPn5smqdtqWYxsjlaPk0E=";
-
-
-my $resp = $ua->post($base_url);
+my $json = `curl -s 'https://sv2022.cvk.lv/pub/Api/feaa9cf53f3b4bc783b44f4cdd6602e3/ElectionResults' -X 'GET' -H 'Pragma: no-cache'  -H 'Accept: application/json, text/plain, */*' -H 'Accept-Language: en-GB,en;q=0.9' -H 'Accept-Encoding: gzip, deflate, br' -H 'Cache-Control: no-cache' -H 'Host: sv2022.cvk.lv' -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15' -H 'Connection: keep-alive' -H 'Referer: https://sv2022.cvk.lv/pub/velesanu-rezultati' -H 'Cookie: _ga=GA1.1.574142751.1664448706; _ga_J7QT0KKPGY=GS1.1.1664649671.5.1.1664652308.0.0.0; _gid=GA1.2.1301026999.1664640285; sv2022.cvk.lv-cookies-accepted=true' -H 'AjaxRequest: true' -H 'AntiXsrfToken: '`;
 
 my %elected_parties_by_id;
-
-if ($resp->is_success) {
-    my $base_data = decode_json($resp->content);
-    my $base_results = $base_data->{result}->{candidateLists};
+if ($json) {
+    my $base_data = decode_json($json);
+ 
+    my $base_results = $base_data->{departmentResults}->[0]->{candidateLists};
     for my $result ( @$base_results ) {
-        if ( $result->{validMarkCount}->{percentage} >= 5 ) {
+        if ( $result->{totalValidMarkCount}->{percentage} >= 5 ) {
             $elected_parties_by_id{$result->{number}} = $result;
         }
     }
@@ -32,8 +22,8 @@ if ($resp->is_success) {
         $longest_party_name = $longest_party_name < length $_->{name} ? length $_->{name} : $longest_party_name;
     }
 
-    for my $region ( @{ $base_data->{childResults} } ) {
-        my $max_in_region = $region->{location}->{deputyLimit};
+    for my $region ( @{ $base_data->{departmentResults} } ) {
+        my $max_in_region = $region->{department}->{deputyCount};
         my @votes_for_seats;
         for my $party ( @{ $region->{candidateLists} } ) {
             if ( $elected_parties_by_id{$party->{number}} ) {
@@ -50,7 +40,8 @@ if ($resp->is_success) {
             $elected_this_region{$vote->{number}}++;
             $elected_parties_by_id{$vote->{number}}->{seats}++;
         }
-        say $region->{location}->{name};
+        say $region->{department}->{name};
+        say $region->{votedVoterCount}->{percentage} . "%";
         say "";
         for ( keys %elected_this_region ) {
             my $party = $elected_parties_by_id{$_};
@@ -65,8 +56,8 @@ if ($resp->is_success) {
         my $padding = $longest_party_name - length $party->{name};
         say $party->{name} . (" "x$padding) 
             . " - " . ($party->{seats} > 10 ? $party->{seats} : " ".$party->{seats}) 
-            . ' - ' . ($party->{validMarkCount}->{percentage} > 10 ? $party->{validMarkCount}->{percentage} : ' '.$party->{validMarkCount}->{percentage}) . '%';
+            . ' - ' . ($party->{totalValidMarkCount}->{percentage} > 10 ? $party->{totalValidMarkCount}->{percentage} : ' '.$party->{totalValidMarkCount}->{percentage}) . '%';
     }
 } else {
-    die $resp->status_line;
+    die $json;
 }
